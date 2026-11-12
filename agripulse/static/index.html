@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="AgriPulse ��Դũҵ������ƽ̨��������⡢��ʷ���ơ��豸�ϱ���ɽ��͵Ĺ����ʾ��">
+  <title>AgriPulse �� ����������м���ѭ</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="/" aria-label="AgriPulse ��ҳ"><span class="brand-icon">a<span>�J</span></span><span>AgriPulse<small>OPEN SOURCE �� FIELD INTELLIGENCE</small></span></a>
+  <div class="workspace-label">�����ռ�</div>
+  <nav aria-label="������"><a href="#overview" class="active">? <span>�������</span><span class="nav-tag">LIVE</span></a><a href="#trends">? <span>��������</span></a><a href="#devices">? <span>�豸��ؿ�</span></a><a href="#rules">? <span>�����ʾ</span></a></nav>
+  <div class="sidebar-note"><span class="tiny-dot"></span> Ϊ����ũҵ������<p>��һ�Ŵ�������ʼ��<br>��ÿһ�����ض���������</p><a href="https://github.com/wenjialei15" target="_blank" rel="noopener noreferrer">GitHub �� wenjialei15 �J</a></div>
+  <div class="sidebar-footer">AgriPulse <span>v0.1.0 / MIT</span></div>
+</aside>
+<main id="overview">
+  <header><div class="breadcrumb">�����ռ� <span>/</span> �������</div><div class="header-right"><span id="connection" role="status">�������ӡ�</span><button id="key-button" class="icon-button" title="���� API key">��������</button></div></header>
+  <div class="page">
+    <section class="page-heading"><div><div class="eyebrow">YOUR FIELDS, CONNECTED.</div><h1>�������<span class="heading-dot">.</span></h1><p>���������ı仯����ÿһ�ι������оݿ�����</p></div><button id="export" class="button secondary">�� ������ǰ�ؿ� CSV</button></section>
+    <section class="welcome"><div><span class="banner-label">AGRICULTURE �� OPEN SOURCE</span><h2>��������ݣ��м���ѭ��</h2><p>�����豸 �� �۲����� �� ����ÿһ����ʾ<br>����Ӳ����Ҳ���Կ�ʼ����ǻ�ũҵʵ�顣</p><span class="banner-chip">HTTP �豸����</span><span class="banner-chip">SQLite ���ش洢</span></div><svg viewBox="0 0 500 250" role="img" aria-label="���Ӵ����������ʾ��ͼ"><defs><pattern id="field" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)"><path d="M0 0V28" stroke="#8cbaa2" stroke-width="10"/></pattern></defs><circle cx="330" cy="100" r="85" fill="#dae6d6"/><path d="M40 210L175 105L455 156L320 245Z" fill="url(#field)"/><path d="M40 210L175 105L455 156L320 245Z" fill="none" stroke="#68977e"/><path d="M175 105V81M320 180V137M398 151V105" stroke="#2d7151" stroke-width="2"/><g fill="#214c38" stroke="#eaf1e6" stroke-width="5"><circle cx="175" cy="78" r="9"/><circle cx="320" cy="132" r="9"/><circle cx="398" cy="101" r="9"/></g><path d="M175 78L320 132L398 101" stroke="#2d7151" stroke-dasharray="5 5" fill="none"/><path d="M70 89Q88 40 122 50Q115 80 70 89Z" fill="#9cbd8e"/><path d="M71 88L101 65" stroke="#426b41"/><text x="182" y="49" fill="#426b41" font-size="11" letter-spacing="3">CONNECTED FIELDS</text></svg></section>
+    <div class="toolbar"><div class="source-control" role="group" aria-label="������Դ"><button data-source="simulator" class="selected" aria-pressed="true">ģ����ʾ</button><button data-source="device" aria-pressed="false">��ʵ�豸</button></div><div class="refresh-control"><span id="updated">�ȴ���������</span><button id="pause" class="text-button">��ͣˢ��</button></div></div>
+    <div id="notice" class="notice" role="status">��ʾģʽ����������ģ��������ֵ������������ʾ��������ʵ��������ˮ����</div>
+    <div id="error" class="error" role="alert" hidden></div>
+    <section class="stats" aria-label="���ָ��"><article><div class="stat-top">ƽ������ <span>��</span></div><div class="stat-value" id="temperature">��</div><div class="stat-foot">��ǰ�����豸ƽ��ֵ</div></article><article><div class="stat-top">ƽ������ʪ�� <span>%</span></div><div class="stat-value" id="humidity">��</div><div class="stat-foot">�۲컷���е�ˮ�ֱ仯</div></article><article><div class="stat-top">ƽ���������� <span>%</span></div><div class="stat-value" id="moisture">��</div><div class="stat-foot">���ϴ�����ʵ�ʱ궨</div></article><article><div class="stat-top">�����豸 <span>��</span></div><div class="stat-value" id="online">��</div><div class="stat-foot" id="online-foot">60 �������ϱ���Ϊ����</div></article></section>
+    <section class="content-grid"><article class="panel trend-panel" id="trends"><div class="panel-heading"><div><h2>����ˮ������</h2><p>��� 120 ������ �� ���豸�ֱ����</p></div><select id="zone" aria-label="ѡ��ؿ�"><option value="greenhouse-a">���� A �� ����</option><option value="greenhouse-b">���� B �� Ҷ��</option><option value="field-c">¶�� C �� ����</option></select></div><div class="chart-legend"><span><i class="legend-line"></i>��������</span><span><i class="legend-dash"></i>�趨��ֵ <b id="threshold-label">35%</b></span></div><div id="chart" class="chart" aria-live="polite"></div></article><article class="panel advice-panel" id="rules"><div class="panel-heading"><div><h2>�����ʾ</h2><p>�򵥹���ÿ�����ܽ���</p></div><span class="rule-icon">�J</span></div><div id="advice-list"></div><form id="threshold-form"><label for="threshold">��ǰ�ؿ���ʾ��ֵ <span>5�C90%</span></label><div class="threshold-input"><input id="threshold" type="number" min="5" max="90" step="0.1" value="35" required><button class="button primary" type="submit">������ֵ</button></div><p>��ʾ�������ˮ�û�ִ�й�ȡ�</p></form></article></section>
+    <section class="panel devices-panel" id="devices"><div class="panel-heading"><div><h2>�豸��ؿ� <span id="device-count" class="count">0</span></h2><p>��עÿһ�Ŵ�������״̬</p></div><span class="subtle">�Զ�ˢ�� / 5 ��</span></div><div class="table-scroll"><table><thead><tr><th>�豸 / �ؿ�</th><th>����״̬</th><th>����</th><th>����ʪ��</th><th>��������</th><th>����</th><th>����</th></tr></thead><tbody id="device-rows"></tbody></table></div><div id="empty" class="empty" hidden>������ʵ�豸���ݡ��� README �� HTTP ʾ���ϱ����豸����������</div></section>
+    <footer><span><span class="tiny-dot"></span> ��Դ����ũҵ���´��ֿɼ���</span><span>AgriPulse �� Built for curious growers</span></footer>
+  </div>
+</main>
+<dialog id="key-dialog"><form id="key-form"><h2>��������</h2><p>��������������� AGRIPULSE_API_KEY ʱ��Ҫ����Կֻ�����ڵ�ǰҳ���ڴ��У�ˢ�º����������롣</p><label for="api-key">API key</label><input id="api-key" type="password" autocomplete="off"><div class="dialog-actions"><button id="cancel-key" type="button" class="button secondary">ȡ��</button><button type="submit" class="button primary">����</button></div></form></dialog>
+</body></html>
