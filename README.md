@@ -27,7 +27,7 @@ cd agripulse
 python -m agripulse
 ```
 
-浏览器打开 **http://127.0.0.1:8000**。Windows 上如果 `python` 不可用，可将命令中的 `python` 换成 `py`。
+浏览器打开 [http://127.0.0.1:8000](http://127.0.0.1:8000)。Windows 上如果 `python` 不可用，可将命令中的 `python` 换成 `py`。
 
 首次启动会生成 3 个虚拟设备，默认土壤阈值为 35%。露天 C 的演示读数通常低于阈值，可以直接看到提示。
 
