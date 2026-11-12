@@ -16,7 +16,7 @@ async function request(path, options = {}) {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     if (response.status === 401 && !$('key-dialog').open) $('key-dialog').showModal();
-    throw new Error(body.error || `����ʧ�ܣ�${response.status}`);
+    throw new Error(body.error || `请求失败：${response.status}`);
   }
   return response;
 }
@@ -37,18 +37,18 @@ function svgEl(tag, attrs, text) {
 
 function renderSummary(data) {
   const online = data.devices.filter((d) => d.online);
-  const mean = (key) => online.length ? (online.reduce((sum, d) => sum + d[key], 0) / online.length).toFixed(1) : '��';
+  const mean = (key) => online.length ? (online.reduce((sum, d) => sum + d[key], 0) / online.length).toFixed(1) : '—';
   $('temperature').textContent = mean('temperature');
   $('humidity').textContent = mean('humidity');
   $('moisture').textContent = mean('soil_moisture');
   $('online').textContent = `${online.length} / ${data.devices.length}`;
   $('device-count').textContent = String(data.devices.length);
-  $('online-foot').textContent = `${data.devices.filter((d) => d.advice.level === 'warning').length} ��ˮ����ʾ �� ${data.devices.length - online.length} ̨����`;
-  $('updated').textContent = `������ ${new Date(data.generated_at).toLocaleTimeString('zh-CN', { hour12: false })}`;
-  $('connection').textContent = paused ? '�� ����ͣˢ��' : '�� ����������';
+  $('online-foot').textContent = `${data.devices.filter((d) => d.advice.level === 'warning').length} 条水分提示 · ${data.devices.length - online.length} 台离线`;
+  $('updated').textContent = `更新于 ${new Date(data.generated_at).toLocaleTimeString('zh-CN', { hour12: false })}`;
+  $('connection').textContent = paused ? '● 已暂停刷新' : '● 服务已连接';
   $('notice').textContent = source === 'simulator'
-    ? (data.simulator_enabled ? '��ʾģʽ����������ģ��������ֵ������������ʾ��������ʵ��������ˮ����' : 'ģ�����ѹرգ���ǰ��ʾ�ѱ������ʾ��ʷ������״̬�԰�����ϱ�ʱ���жϡ�')
-    : '��ʵ�豸ģʽ���������� HTTP �ϱ��������ٷֱ������б궨�������ʾ�����˹�����ֳ�����жϡ�';
+    ? (data.simulator_enabled ? '演示模式：数据来自模拟器，阈值仅用于软件演示，不代表实际作物需水量。' : '模拟器已关闭：当前显示已保存的演示历史；在线状态仍按最后上报时间判断。')
+    : '真实设备模式：读数来自 HTTP 上报。土壤百分比需自行标定，灌溉提示须由人工结合现场情况判断。';
   const zoneNames = Object.fromEntries(data.zones.map((z) => [z.id, z.name]));
   const zone = data.zones.find((z) => z.id === $('zone').value);
   if (document.activeElement !== $('threshold') && !savedNotice) $('threshold').value = zone.moisture_min;
@@ -59,18 +59,18 @@ function renderSummary(data) {
     const identity = el('td');
     identity.append(el('span', 'device-id', d.device_id), el('span', 'device-zone', zoneNames[d.zone_id]));
     const state = el('td');
-    state.append(el('span', d.online ? 'status' : 'status offline', d.online ? '�� ����' : '�� ����'));
-    row.append(identity, state, el('td', '', `${d.temperature.toFixed(1)} ��`), el('td', '', `${d.humidity.toFixed(1)}%`), el('td', d.advice.level === 'warning' ? 'low' : '', `${d.soil_moisture.toFixed(1)}%`), el('td', '', `${Math.round(d.light).toLocaleString()} lx`), el('td', '', `${d.battery.toFixed(0)}%`));
+    state.append(el('span', d.online ? 'status' : 'status offline', d.online ? '● 在线' : '○ 离线'));
+    row.append(identity, state, el('td', '', `${d.temperature.toFixed(1)} ℃`), el('td', '', `${d.humidity.toFixed(1)}%`), el('td', d.advice.level === 'warning' ? 'low' : '', `${d.soil_moisture.toFixed(1)}%`), el('td', '', `${Math.round(d.light).toLocaleString()} lx`), el('td', '', `${d.battery.toFixed(0)}%`));
     $('device-rows').append(row);
   }
   $('empty').hidden = data.devices.length > 0;
-  $('empty').textContent = source === 'device' ? '������ʵ�豸���ݡ��� README �� HTTP ʾ���ϱ����豸����������' : '������ʾ���ݡ���������ʱ����ģ�����������ɡ�';
+  $('empty').textContent = source === 'device' ? '尚无真实设备数据。按 README 的 HTTP 示例上报后，设备会出现在这里。' : '暂无演示数据。启动服务时启用模拟器即可生成。';
   $('advice-list').replaceChildren();
   const selected = data.devices.filter((d) => d.zone_id === zone.id);
-  if (!selected.length) $('advice-list').append(el('p', 'advice-empty', '��ǰ�ؿ������豸���ݡ�'));
+  if (!selected.length) $('advice-list').append(el('p', 'advice-empty', '当前地块暂无设备数据。'));
   for (const d of selected) {
     const card = el('article', `advice-card ${d.advice.level}`);
-    card.append(el('h3', '', `${d.device_id} �� ${d.advice.title}`), el('p', '', d.advice.reason));
+    card.append(el('h3', '', `${d.device_id} · ${d.advice.title}`), el('p', '', d.advice.reason));
     $('advice-list').append(card);
   }
 }
@@ -79,10 +79,10 @@ function renderChart(readings, threshold) {
   const container = $('chart');
   container.replaceChildren();
   if (!readings.length) {
-    container.append(el('div', 'chart-empty', '������ʷ���ݣ��ȴ��豸�ϱ���'));
+    container.append(el('div', 'chart-empty', '暂无历史数据，等待设备上报。'));
     return;
   }
-  const svg = svgEl('svg', { viewBox: '0 0 640 230', role: 'img', 'aria-label': `����ˮ������ͼ����ֵ ${threshold}%��${readings.length} ������` });
+  const svg = svgEl('svg', { viewBox: '0 0 640 230', role: 'img', 'aria-label': `土壤水分趋势图，阈值 ${threshold}%，${readings.length} 条数据` });
   const left = 40, right = 622, top = 14, bottom = 188;
   const times = readings.map((r) => new Date(r.recorded_at).getTime());
   const first = Math.min(...times), last = Math.max(...times);
@@ -107,7 +107,7 @@ function renderChart(readings, threshold) {
     svg.append(poly);
     const p = points[points.length - 1];
     const dot = svgEl('circle', { cx: x(new Date(p.recorded_at).getTime()), cy: y(p.soil_moisture), r: 4, fill: color, stroke: 'white', 'stroke-width': 2 });
-    dot.append(svgEl('title', {}, `${device}��${p.soil_moisture}%`));
+    dot.append(svgEl('title', {}, `${device}：${p.soil_moisture}%`));
     svg.append(dot);
   });
   for (const [time, anchor] of [[first, 'start'], [last, 'end']]) {
@@ -135,8 +135,8 @@ async function refresh(force = false) {
     $('error').hidden = true;
   } catch (error) {
     if (currentGeneration !== generation) return;
-    $('connection').textContent = '�� �����ж�';
-    $('error').textContent = `${error.message}��ҳ�汣�����һ�γɹ���ȡ�����ݣ�����������ӡ�`;
+    $('connection').textContent = '○ 连接中断';
+    $('error').textContent = `${error.message}。页面保留最后一次成功读取的数据，请检查服务连接。`;
     $('error').hidden = false;
   } finally {
     loading = false;
@@ -151,13 +151,13 @@ document.querySelectorAll('[data-source]').forEach((button) => {
     generation++;
     summary = null;
     // Clear old-source readings immediately, even if the next fetch fails.
-    for (const id of ['temperature', 'humidity', 'moisture', 'online']) $(id).textContent = '��';
+    for (const id of ['temperature', 'humidity', 'moisture', 'online']) $(id).textContent = '—';
     $('device-rows').replaceChildren();
     $('advice-list').replaceChildren();
-    $('chart').replaceChildren(el('div', 'chart-empty', '���ڼ�����ѡ������Դ��'));
+    $('chart').replaceChildren(el('div', 'chart-empty', '正在加载所选数据来源…'));
     $('device-count').textContent = '0';
-    $('online-foot').textContent = '�ȴ���ǰ��Դ������';
-    $('notice').textContent = source === 'device' ? '���ڼ�����ʵ�豸���ݡ�' : '���ڼ���ģ����ʾ���ݡ�';
+    $('online-foot').textContent = '等待当前来源的数据';
+    $('notice').textContent = source === 'device' ? '正在加载真实设备数据…' : '正在加载模拟演示数据…';
     document.querySelectorAll('[data-source]').forEach((b) => {
       b.classList.toggle('selected', b === button);
       b.setAttribute('aria-pressed', String(b === button));
@@ -168,8 +168,8 @@ document.querySelectorAll('[data-source]').forEach((button) => {
 $('zone').addEventListener('change', () => { generation++; savedNotice = ''; refresh(true); });
 $('pause').addEventListener('click', () => {
   paused = !paused;
-  $('pause').textContent = paused ? '����ˢ��' : '��ͣˢ��';
-  $('connection').textContent = paused ? '�� ����ͣˢ��' : '�������ӡ�';
+  $('pause').textContent = paused ? '继续刷新' : '暂停刷新';
+  $('connection').textContent = paused ? '● 已暂停刷新' : '正在连接…';
   if (!paused) refresh(true);
 });
 $('threshold-form').addEventListener('submit', async (event) => {
@@ -181,7 +181,7 @@ $('threshold-form').addEventListener('submit', async (event) => {
   try {
     await request('/api/threshold', { method: 'POST', body: JSON.stringify({ zone_id: $('zone').value, moisture_min: value }) });
     savedNotice = 'saved';
-    button.textContent = '�ѱ���';
+    button.textContent = '已保存';
     generation++;
     await refresh(true);
   } catch (error) {
@@ -189,7 +189,7 @@ $('threshold-form').addEventListener('submit', async (event) => {
     $('error').hidden = false;
   } finally {
     button.disabled = false;
-    setTimeout(() => { savedNotice = ''; button.textContent = '������ֵ'; }, 1800);
+    setTimeout(() => { savedNotice = ''; button.textContent = '保存阈值'; }, 1800);
   }
 });
 $('export').addEventListener('click', async () => {

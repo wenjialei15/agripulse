@@ -17,7 +17,7 @@ def read_sensors(step, zone, device):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="���Ͳ������ݣ�����ʵ������ʱ�滻 read_sensors()")
+    parser = argparse.ArgumentParser(description="发送测试数据；接真实传感器时替换 read_sensors()")
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--device", default="example-01")
     parser.add_argument("--zone", default="greenhouse-a", choices=["greenhouse-a", "greenhouse-b", "field-c"])
@@ -25,7 +25,7 @@ def main():
     args = parser.parse_args()
     parsed = urlsplit(args.url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        parser.error("url ������ HTTP(S) �����ַ�����ܰ���ƾ֤����ѯ������Ƭ��")
+        parser.error("url 必须是 HTTP(S) 服务地址，不能包含凭证、查询参数或片段")
     key = os.environ.get("AGRIPULSE_API_KEY", "")
     headers = {"Content-Type": "application/json"}
     if key:
@@ -39,11 +39,11 @@ def main():
                 with urlopen(request, timeout=10) as response:
                     print(response.status, response.read().decode())
             except HTTPError as exc:
-                print("HTTP ����", exc.code, exc.read().decode(errors="replace"))
+                print("HTTP 错误", exc.code, exc.read().decode(errors="replace"))
                 if args.once:
                     raise SystemExit(1)
             except URLError:
-                print("�޷����ӷ�����������״̬����ַ������")
+                print("无法连接服务，请检查启动状态、地址与网络")
                 if args.once:
                     raise SystemExit(1)
             if args.once:
@@ -51,7 +51,7 @@ def main():
             step += 1
             time.sleep(5)
     except KeyboardInterrupt:
-        print("��ֹͣ�ϱ�")
+        print("已停止上报")
 
 
 if __name__ == "__main__":

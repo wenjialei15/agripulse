@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-ZONES = {"greenhouse-a": "���� A �� ����", "greenhouse-b": "���� B �� Ҷ��", "field-c": "¶�� C �� ����"}
+ZONES = {"greenhouse-a": "温室 A · 番茄", "greenhouse-b": "温室 B · 叶菜", "field-c": "露天 C · 玉米"}
 RANGES = {"temperature": (-40, 85), "humidity": (0, 100), "soil_moisture": (0, 100), "light": (0, 200000), "battery": (0, 100)}
 
 
@@ -17,18 +17,18 @@ def now():
 
 def validate(payload):
     if not isinstance(payload, dict):
-        raise ValueError("�ϱ����ݱ����� JSON ����")
+        raise ValueError("上报内容必须是 JSON 对象")
     zone = payload.get("zone_id")
     device = payload.get("device_id")
     if zone not in ZONES:
-        raise ValueError("δ֪ zone_id")
+        raise ValueError("未知 zone_id")
     if not isinstance(device, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", device):
-        raise ValueError("device_id ��Ϊ 1�C64 λ��ĸ�����֡��̺��߻��»��ߣ�������ĸ�����ֿ�ͷ")
+        raise ValueError("device_id 需为 1–64 位字母、数字、短横线或下划线，且以字母或数字开头")
     values = {}
     for key, (low, high) in RANGES.items():
         value = payload.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not low <= value <= high:
-            raise ValueError(f"{key} ������ {low} �� {high} ֮���������ֵ")
+            raise ValueError(f"{key} 必须是 {low} 到 {high} 之间的有限数值")
         values[key] = float(value)
     return {"zone_id": zone, "device_id": device, **values}
 
@@ -64,11 +64,11 @@ class Store:
     def ingest(self, payload, source="device", recorded_at=None):
         row = validate(payload)
         if source not in ("device", "simulator"):
-            raise ValueError("��Ч������Դ")
+            raise ValueError("无效数据来源")
         with self.connection() as db:
             existing = db.execute("SELECT zone_id, source FROM readings WHERE device_id=? ORDER BY id DESC LIMIT 1", (row["device_id"],)).fetchone()
             if existing and (existing["source"] != source or existing["zone_id"] != row["zone_id"]):
-                raise ValueError("device_id �ѱ�������Դ��ؿ�ʹ�ã���ʹ���µ��豸��ʶ")
+                raise ValueError("device_id 已被其他来源或地块使用，请使用新的设备标识")
             cur = db.execute("""INSERT INTO readings
                 (zone_id, device_id, temperature, humidity, soil_moisture, light, battery, source, recorded_at)
                 VALUES (:zone_id,:device_id,:temperature,:humidity,:soil_moisture,:light,:battery,:source,:recorded_at)""",
@@ -81,7 +81,7 @@ class Store:
 
     def set_threshold(self, zone, value):
         if zone not in ZONES or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 5 <= value <= 90:
-            raise ValueError("�ؿ���Ч����ֵ���� 5�C90% ֮��")
+            raise ValueError("地块无效或阈值不在 5–90% 之间")
         with self.connection() as db:
             db.execute("UPDATE thresholds SET moisture_min=? WHERE zone_id=?", (value, zone))
 
@@ -92,7 +92,7 @@ class Store:
 
     def history(self, zone, source, limit=120):
         if zone not in ZONES or source not in ("device", "simulator"):
-            raise ValueError("��Ч�ؿ��������Դ")
+            raise ValueError("无效地块或数据来源")
         with self.connection() as db:
             rows = db.execute("SELECT * FROM readings WHERE zone_id=? AND source=? ORDER BY id DESC LIMIT ?", (zone, source, min(max(limit, 1), 10000))).fetchall()
         return [dict(row) for row in reversed(rows)]
@@ -128,10 +128,10 @@ class Store:
 
 def advice(row, threshold):
     if not row.get("online", True):
-        return {"level": "offline", "title": "�豸����", "reason": "���� 60 ��û�������ݣ����鹩������ӣ��ݲ����ɹ�Ƚ��顣"}
+        return {"level": "offline", "title": "设备离线", "reason": "超过 60 秒没有新数据，请检查供电和连接；暂不生成灌溉建议。"}
     if row["soil_moisture"] < threshold:
-        return {"level": "warning", "title": "����������ˮ��", "reason": f"��ǰ���� {row['soil_moisture']:.1f}%��������ʾ��ֵ {threshold:g}%�����ϴ������궨����������������˹��ж��Ƿ��ȡ�"}
-    return {"level": "ok", "title": "ˮ�ֶ������趨��Χ��", "reason": f"��ǰ���� {row['soil_moisture']:.1f}%��δ�����趨��ֵ {threshold:g}%��"}
+        return {"level": "warning", "title": "建议检查土壤水分", "reason": f"当前读数 {row['soil_moisture']:.1f}%，低于演示阈值 {threshold:g}%。请结合传感器标定、土壤和作物情况人工判断是否灌溉。"}
+    return {"level": "ok", "title": "水分读数在设定范围内", "reason": f"当前读数 {row['soil_moisture']:.1f}%，未低于设定阈值 {threshold:g}%。"}
 
 
 def simulated_reading(zone, index, step):

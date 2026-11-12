@@ -1,25 +1,25 @@
-# AgriPulse ??
+# AgriPulse 🌱
 
-**��������ݣ��м���ѭ��** һ������Ӳ��Ҳ�����е�ũҵ��������Դ��Ŀ��
+**让田间数据，有迹可循。** 一个无需硬件也能运行的农业物联网开源项目。
 
 AgriPulse is a hardware-optional agriculture IoT starter: a live dashboard, validated HTTP telemetry ingestion, SQLite history and explainable soil-moisture hints. Built with Python's standard library and vanilla JavaScript. No cloud account, frontend build or third-party runtime dependency required.
 
-**״̬��v0.1.0 / ������ MVP** �� **ά���ߣ�[wenjialei15](https://github.com/wenjialei15)** �� **Э�飺[MIT](LICENSE)**
+**状态：v0.1.0 / 可运行 MVP** · **维护者：[wenjialei15](https://github.com/wenjialei15)** · **协议：[MIT](LICENSE)**
 
-## Ϊʲô�������Ŀ
+## 为什么做这个项目
 
-ũҵ���������ų�������Ӳ������ƽ̨���û��Ӳ����ϡ�AgriPulse �ӿ����е���С��·������**�ɼ� �� �洢 �� ���ӻ� �� �ɽ�����ʾ**������ģ�����������̣��ٰ�ģ���������Լ����豸��
+农业物联网入门常常卡在硬件、云平台配置或复杂部署上。AgriPulse 从可运行的最小链路出发：**采集 → 存储 → 可视化 → 可解释提示**。先用模拟器理解流程，再把模拟器换成自己的设备。
 
-- **��Ӳ����������**��3 ��ģ��ؿ飬�״���������Լ 1 Сʱ��ʷ��֮��ÿ 5 ��ˢ�¡�
-- **��ʾ���ֳ���ȷ�ֿ�**���л���ģ����ʾ / ��ʵ�豸����������Դ�ֱ��ѯ�͵�����
-- **�������ڱ���**��SQLite �־û���Ĭ�ϱ������ 30 �죻�ɵ�����ǰ�ؿ顢��ǰ��Դ��� 10000 �� CSV ���ݡ�
-- **������Խ���**��ÿ��ؿɵ�������ˮ����ֵ��ҳ��չʾ����ԭ�������豸�����ɹ����ʾ��
-- **��ʵ����·��**��У����� JSON HTTP �ϱ��ӿڣ��ṩ Python �豸ʾ����ESP32 ���豸�ɰ���ͬЭ��Խӡ�
-- **������Ӧʽ����**�����¡�����ʪ�ȡ��������������ա�����������״̬����ʷ���ơ�
+- **无硬件即可体验**：3 个模拟地块，首次启动生成约 1 小时历史，之后每 5 秒刷新。
+- **演示与现场明确分开**：切换“模拟演示 / 真实设备”，两种来源分别查询和导出。
+- **数据留在本机**：SQLite 持久化，默认保留最近 30 天；可导出当前地块、当前来源最近 10000 条 CSV 数据。
+- **建议可以解释**：每块地可单独设置水分阈值，页面展示触发原因；离线设备不生成灌溉提示。
+- **真实接入路径**：校验过的 JSON HTTP 上报接口，提供 Python 设备示例，ESP32 等设备可按相同协议对接。
+- **中文响应式看板**：气温、空气湿度、土壤读数、光照、电量、在线状态与历史趋势。
 
-## 30 ������
+## 30 秒启动
 
-��Ҫ Python **3.9+**������ʹ������֧�ֵ� Python �汾��3.9 �����������л������������в���Ҫ `pip install`��
+需要 Python **3.9+**。建议使用仍受支持的 Python 版本；3.9 兼容用于已有环境。核心运行不需要 `pip install`。
 
 ```bash
 git clone https://github.com/wenjialei15/agripulse.git
@@ -27,29 +27,29 @@ cd agripulse
 python -m agripulse
 ```
 
-������� **http://127.0.0.1:8000**��Windows ����� `python` �����ã��ɽ������е� `python` ���� `py`��
+浏览器打开 **http://127.0.0.1:8000**。Windows 上如果 `python` 不可用，可将命令中的 `python` 换成 `py`。
 
-�״����������� 3 �������豸��Ĭ��������ֵΪ 35%��¶�� C ����ʾ����ͨ��������ֵ������ֱ�ӿ�����ʾ��
+首次启动会生成 3 个虚拟设备，默认土壤阈值为 35%。露天 C 的演示读数通常低于阈值，可以直接看到提示。
 
 ```bash
-# ֻ����ʵ�豸���ر�ģ����
+# 只接真实设备，关闭模拟器
 python -m agripulse --no-simulator
 
-# �Զ���˿������ݿ�·��
+# 自定义端口与数据库路径
 python -m agripulse --port 8080 --db data/my-farm.db
 ```
 
-## �ϱ�һ���豸����
+## 上报一条设备数据
 
-�����������ٴ򿪵ڶ����նˣ�
+先启动服务，再打开第二个终端：
 
 ```bash
 python examples/send_reading.py --once
 ```
 
-�ڿ����л��� **��ʵ�豸**��ѡ�� **���� A**������ `--once` ��ÿ 5 �뷢��һ��ʾ�����ݡ�����ű����ɲ��Զ�������ʵ����������ʱ���滻����������
+在看板切换到 **真实设备**，选择 **温室 A**。不加 `--once` 会每 5 秒发送一条示例数据。这个脚本生成测试读数，真实传感器接入时需替换测量函数。
 
-JSON Э��ʾ����
+JSON 协议示例：
 
 ```json
 {
@@ -63,93 +63,93 @@ JSON Э��ʾ����
 }
 ```
 
-| �ֶ� | ��Χ / ���� |
+| 字段 | 范围 / 含义 |
 | --- | --- |
-| `zone_id` | `greenhouse-a`��`greenhouse-b`��`field-c` |
-| `device_id` | 1�C64 λ��ĸ�����֡�`-`��`_`������ĸ�����ֿ�ͷ��ͬһ ID ���ɿ�ؿ����Դ���� |
-| `temperature` | -40�C85 �� |
-| `humidity` | 0�C100% |
-| `soil_moisture` | 0�C100%���豸���б궨����Զ��� |
-| `light` | 0�C200000 lx |
-| `battery` | 0�C100% |
+| `zone_id` | `greenhouse-a`、`greenhouse-b`、`field-c` |
+| `device_id` | 1–64 位字母、数字、`-`、`_`，以字母或数字开头；同一 ID 不可跨地块或来源复用 |
+| `temperature` | -40–85 ℃ |
+| `humidity` | 0–100% |
+| `soil_moisture` | 0–100%，设备自行标定的相对读数 |
+| `light` | 0–200000 lx |
+| `battery` | 0–100% |
 
-�����ֶα�������� NaN��Infinity���ַ����򲼶�ֵ��Ϊ����ֵ������ʱ���ɷ��������ɣ��豸�ύ�� `source` ��ʱ���ֶβ��Ḳ�Ƿ�������¼��HTTP ���յ�����һ�ɱ��Ϊ `device`��
+所有字段必填，不接受 NaN、Infinity、字符串或布尔值作为测量值。接收时间由服务器生成，设备提交的 `source` 和时间字段不会覆盖服务器记录。HTTP 接收的数据一律标记为 `device`。
 
 ## API
 
-| ���� | ·�� | ˵�� |
+| 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/health` | �汾��ģ����״̬�������Ȩ |
-| GET | `/api/summary?source=device` | ��ǰ�豸������״̬��������ʾ���ؿ���ֵ |
-| GET | `/api/history?zone=greenhouse-a&source=device` | ��ǰ�ؿ���� 120 ����¼�������˳�򷵻� |
-| GET | `/api/export.csv?zone=greenhouse-a&source=device` | ��ǰ�ؿ���� 10000 ����¼��UTF-8 CSV |
-| POST | `/api/telemetry` | �ϱ����� JSON���ɹ����� 201 ���¼ ID |
-| POST | `/api/threshold` | `{"zone_id":"greenhouse-a","moisture_min":35}`����Χ 5�C90 |
+| GET | `/api/health` | 版本与模拟器状态，无需鉴权 |
+| GET | `/api/summary?source=device` | 当前设备、在线状态、规则提示及地块阈值 |
+| GET | `/api/history?zone=greenhouse-a&source=device` | 当前地块最近 120 条记录，按入库顺序返回 |
+| GET | `/api/export.csv?zone=greenhouse-a&source=device` | 当前地块最近 10000 条记录，UTF-8 CSV |
+| POST | `/api/telemetry` | 上报上述 JSON；成功返回 201 与记录 ID |
+| POST | `/api/threshold` | `{"zone_id":"greenhouse-a","moisture_min":35}`；范围 5–90 |
 
-`source` ���� `simulator` �� `device`��Ĭ�� `simulator`��д��ʱ���� `Content-Type: application/json`��API ���󷵻� `{"error":"..."}` �Ͷ�Ӧ HTTP ״̬�롣
+`source` 可用 `simulator` 或 `device`，默认 `simulator`。写入时设置 `Content-Type: application/json`。API 错误返回 `{"error":"..."}` 和对应 HTTP 状态码。
 
-## ���Ӿ������豸
+## 连接局域网设备
 
-Ĭ��ֻ���� `127.0.0.1`�����Ҫ����������������Ҫ�������� 24 �ַ������ API key��ʾ�� Python �ϱ�������ͬһ����������ȡ��Կ��
+默认只监听 `127.0.0.1`。如果要监听其他网卡，需要设置至少 24 字符的随机 API key。示例 Python 上报程序会从同一环境变量读取密钥。
 
-PowerShell��
+PowerShell：
 
 ```powershell
 $env:AGRIPULSE_API_KEY = python -c "import secrets; print(secrets.token_urlsafe(32))"
 python -m agripulse --host 0.0.0.0 --no-simulator
 ```
 
-macOS / Linux��
+macOS / Linux：
 
 ```bash
 export AGRIPULSE_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 python -m agripulse --host 0.0.0.0 --no-simulator
 ```
 
-�豸������ `Authorization: Bearer <�����Կ>`�������������������á�����ͬһ��Կ����Կ�������ڵ�ǰҳ���ڴ��У�ˢ�º��������롣�� `/api/health` ������� API ������Կ��������Կӵ�ж�дȨ�ޡ�
+设备请求发送 `Authorization: Bearer <你的密钥>`。浏览器点击“连接设置”输入同一密钥，密钥仅保留在当前页面内存中，刷新后重新输入。除 `/api/health` 外的所有 API 均受密钥保护，密钥拥有读写权限。
 
-���ķ�������λΪ����ʵ�����ѧ���ߣ����������������񡣿����粿��Ӧʹ�� HTTPS ������������ʿ��ƺ��������ƣ����÷���û�� TLS���û�Ȩ�޷ּ������������ӹ̡���Ҫ����ʵ��Կ���������û�ũ�����ݿ��ύ�� Git��
+核心服务器定位为本地实验与教学工具，不是生产公网服务。跨网络部署应使用 HTTPS 反向代理、访问控制和速率限制；内置服务没有 TLS、用户权限分级或完整生产加固。不要将真实密钥、网络配置或农场数据库提交到 Git。
 
-## ��Ŀ�ṹ��ܹ�
+## 项目结构与架构
 
-| ·�� | ְ�� |
+| 路径 | 职责 |
 | --- | --- |
-| `agripulse/core.py` | ����У�顢SQLite �洢��ģ��������ֵ���� |
-| `agripulse/server.py` | HTTP API����Ȩ����̬�ļ�����̨ģ������ |
-| `agripulse/static/` | ���ļ�⿴�壬ԭ�� HTML / CSS / JavaScript |
-| `examples/send_reading.py` | �����е� HTTP �豸�ϱ�ʾ�� |
-| `tests/` | �洢�������� HTTP ���ɲ��� |
-| `docs/` | ·��ͼ��API ʹ�ò����빱�׷��� |
+| `agripulse/core.py` | 数据校验、SQLite 存储、模拟器、阈值规则 |
+| `agripulse/server.py` | HTTP API、鉴权、静态文件、后台模拟任务 |
+| `agripulse/static/` | 中文监测看板，原生 HTML / CSS / JavaScript |
+| `examples/send_reading.py` | 可运行的 HTTP 设备上报示例 |
+| `tests/` | 存储、规则与 HTTP 集成测试 |
+| `docs/` | 路线图、API 使用补充与贡献方向 |
 
-�豸��ģ����д��ͬһ�洢�㣬����Դ�ֶθ��룻�����ÿ 5 ���ȡ���ܺ���ʷ�ӿڡ����豸�����Ʒֱ���ƣ�����Ѳ�ͬ�豸�ĵ�ƴ��һ�����ߡ����� 60 ��δ�յ������ݼ���Ϊ���ߣ����߶���������ƽ��ֵ��
+设备或模拟器写入同一存储层，以来源字段隔离；浏览器每 5 秒读取汇总和历史接口。各设备的趋势分别绘制，避免把不同设备的点拼成一条曲线。超过 60 秒未收到新数据即视为离线，离线读数不计入平均值。
 
-## ��֤
+## 验证
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-ǰ��Ϊԭ�� JavaScript���Ѱ�װ Node.js ʱ�ɶ������﷨��
+前端为原生 JavaScript。已安装 Node.js 时可额外检查语法：
 
 ```bash
 node --check agripulse/static/app.js
 ```
 
-## ��ǰ�߽�
+## 当前边界
 
-- ��ֵ��ʾ������������ʾ�����Ǿ�ũ����֤�Ĺ��ģ�ͣ�Ҳ�������ˮ�á�
-- �����ٷֱ�Ϊ��Զ����������ϴ����������ʼ��ֳ������궨��Ĭ����ֵ���������Ƽ�ֵ��
-- �ؿ鵱ǰ�� `core.py` �� `ZONES` �ж��壬��֧��ҳ����ɾ�ؿ顣
-- �澯Ϊ��ǰ״̬��ʾ��δʵ�ֶ����澯�¼���ʷ�����Ż��ʼ�֪ͨ��
-- ��ǰ֧�� HTTP ���룻MQTT��LoRaWAN��MCP �� AI �������ں����ƻ�����δʵ�֡�
-- ���ݿⱸ��Ӧ��ֹͣ�������У����汾û���Զ����ݼ����ݿ�����Ǩ��ϵͳ��
+- 阈值提示是软件规则演示，不是经农艺验证的灌溉模型，也不会操作水泵。
+- 土壤百分比为相对读数，必须结合传感器、介质及现场条件标定；默认阈值不是作物推荐值。
+- 地块当前在 `core.py` 的 `ZONES` 中定义，不支持页面增删地块。
+- 告警为当前状态提示，未实现独立告警事件历史、短信或邮件通知。
+- 当前支持 HTTP 接入；MQTT、LoRaWAN、MCP 和 AI 功能属于后续计划，尚未实现。
+- 数据库备份应在停止服务后进行；本版本没有自动备份及数据库升级迁移系统。
 
-## һ��������
+## 一起完善它
 
-��ӭ�����豸���䡢�궨���̡�Ӣ�Ľ��桢���Ի��ĵ��������Ķ� [CONTRIBUTING.md](CONTRIBUTING.md) �� [·��ͼ](docs/ROADMAP.md)��
+欢迎贡献设备适配、标定流程、英文界面、测试或文档。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [路线图](docs/ROADMAP.md)。
 
-��������Ŀ�����а�������ӭ Star������������ʹ�ã���ӭ����Ӳ���ͺš�����ʾ�������븴�ֲ��衣
+如果这个项目对你有帮助，欢迎 Star；如果你在田间使用，欢迎分享硬件型号、匿名示例数据与复现步骤。
 
 ## License
 
-[MIT](LICENSE) ? 2026 wenjialei15
+[MIT](LICENSE) © 2026 wenjialei15

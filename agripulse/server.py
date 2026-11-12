@@ -36,7 +36,7 @@ def make_handler(store, api_key="", simulator_enabled=True):
         def authorized(self):
             supplied = self.headers.get("Authorization", "")
             if api_key and not hmac.compare_digest(supplied.encode(), ("Bearer " + api_key).encode()):
-                self.reply(401, {"error": "��Ҫ��Ч�� Bearer API key"})
+                self.reply(401, {"error": "需要有效的 Bearer API key"})
                 return False
             return True
 
@@ -50,13 +50,13 @@ def make_handler(store, api_key="", simulator_enabled=True):
                 query = parse_qs(route.query)
                 source = query.get("source", ["simulator"])[0]
                 if source not in ("simulator", "device"):
-                    return self.reply(400, {"error": "source ֻ���� simulator �� device"})
+                    return self.reply(400, {"error": "source 只能是 simulator 或 device"})
                 if route.path == "/api/summary":
                     return self.reply(200, {**store.summary(source), "simulator_enabled": simulator_enabled})
                 if route.path in ("/api/history", "/api/export.csv"):
                     zone = query.get("zone", ["greenhouse-a"])[0]
                     if zone not in ZONES:
-                        return self.reply(400, {"error": "δ֪�ؿ�"})
+                        return self.reply(400, {"error": "未知地块"})
                     limit = 10000 if route.path.endswith(".csv") else 120
                     rows = store.history(zone, source, limit)
                     if route.path.endswith(".csv"):
@@ -67,10 +67,10 @@ def make_handler(store, api_key="", simulator_enabled=True):
                         writer.writerows(rows)
                         return self.reply(200, ("\ufeff" + output.getvalue()).encode("utf-8"), "text/csv; charset=utf-8")
                     return self.reply(200, {"readings": rows})
-                return self.reply(404, {"error": "API ������"})
+                return self.reply(404, {"error": "API 不存在"})
             assets = {"/": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8"), "/style.css": ("style.css", "text/css; charset=utf-8"), "/favicon.svg": ("favicon.svg", "image/svg+xml")}
             if route.path not in assets:
-                return self.reply(404, {"error": "ҳ�治����"})
+                return self.reply(404, {"error": "页面不存在"})
             name, mime = assets[route.path]
             self.reply(200, (STATIC / name).read_bytes(), mime)
 
@@ -81,19 +81,19 @@ def make_handler(store, api_key="", simulator_enabled=True):
             origin = self.headers.get("Origin")
             host = self.headers.get("Host", "")
             if origin and origin not in ("http://" + host, "https://" + host):
-                return self.reply(403, {"error": "��������վд��"})
+                return self.reply(403, {"error": "不允许跨站写入"})
             path = urlsplit(self.path).path
             if path not in ("/api/telemetry", "/api/threshold"):
-                return self.reply(404, {"error": "API ������"})
+                return self.reply(404, {"error": "API 不存在"})
             if self.headers.get_content_type() != "application/json":
-                return self.reply(415, {"error": "Content-Type ����Ϊ application/json"})
+                return self.reply(415, {"error": "Content-Type 必须为 application/json"})
             try:
                 size = int(self.headers.get("Content-Length", "0"))
                 if not 0 < size <= MAX_BODY:
-                    return self.reply(413, {"error": "���������Ϊ 1�C16384 �ֽ�"})
+                    return self.reply(413, {"error": "请求体必须为 1–16384 字节"})
                 payload = json.loads(self.rfile.read(size))
                 if not isinstance(payload, dict):
-                    raise ValueError("���������Ϊ JSON ����")
+                    raise ValueError("请求体必须为 JSON 对象")
                 if path == "/api/telemetry":
                     return self.reply(201, {"id": store.ingest(payload), "source": "device"})
                 store.set_threshold(payload.get("zone_id"), payload.get("moisture_min"))
@@ -105,7 +105,7 @@ def make_handler(store, api_key="", simulator_enabled=True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AgriPulse ũҵ��������ʾ���豸���")
+    parser = argparse.ArgumentParser(description="AgriPulse 农业物联网演示与设备监测")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--db", default="data/agripulse.db")
@@ -113,7 +113,7 @@ def main():
     args = parser.parse_args()
     key = os.environ.get("AGRIPULSE_API_KEY", "")
     if args.host not in ("127.0.0.1", "localhost", "::1") and len(key) < 24:
-        parser.error("�Ǳ���������Ҫ���� 24 �ַ��� AGRIPULSE_API_KEY�������粿����ͨ�� HTTPS ���������")
+        parser.error("非本机监听需要至少 24 字符的 AGRIPULSE_API_KEY；跨网络部署还需通过 HTTPS 反向代理。")
     store = Store(args.db)
     store.prune()
     stop = threading.Event()
@@ -132,7 +132,7 @@ def main():
         threading.Thread(target=simulate, daemon=True).start()
     server = ThreadingHTTPServer((args.host, args.port), make_handler(store, key, not args.no_simulator))
     server.daemon_threads = True
-    print(f"AgriPulse: http://{args.host}:{args.port}  (Ctrl+C ֹͣ)", flush=True)
+    print(f"AgriPulse: http://{args.host}:{args.port}  (Ctrl+C 停止)", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
