@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="AgriPulse 开源农业物联网平台：环境监测、历史趋势、设备上报与可解释的灌溉提示。">
+  <title>AgriPulse · 让田间数据有迹可循</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="./" aria-label="AgriPulse 首页"><span class="brand-icon">a<span>↗</span></span><span>AgriPulse<small>OPEN SOURCE · FIELD INTELLIGENCE</small></span></a>
+  <div class="workspace-label">工作空间</div>
+  <nav aria-label="主导航"><a href="#overview" class="active">◫ <span>田间总览</span><span class="nav-tag">DEMO</span></a><a href="#trends">⌁ <span>环境趋势</span></a><a href="#devices">▦ <span>设备与地块</span></a><a href="#rules">≋ <span>灌溉提示</span></a></nav>
+  <div class="sidebar-note"><span class="tiny-dot"></span> 为开放农业而构建<p>从一颗传感器开始，<br>让每一块土地都被看见。</p><a href="https://github.com/wenjialei15" target="_blank" rel="noopener noreferrer">GitHub · wenjialei15 ↗</a></div>
+  <div class="sidebar-footer">AgriPulse <span>v0.1.0 / MIT</span></div>
+</aside>
+<main id="overview">
+  <header><div class="breadcrumb">工作空间 <span>/</span> 田间总览</div><div class="header-right"><span id="connection" role="status">正在连接…</span><button hidden id="key-button" class="icon-button" title="设置 API key">连接设置</button></div></header>
+  <div class="page">
+    <section class="page-heading"><div><div class="eyebrow">YOUR FIELDS, CONNECTED.</div><h1>田间总览<span class="heading-dot">.</span></h1><p>读懂环境的变化，让每一次管理都有据可依。</p></div><button id="export" class="button secondary">↓ 导出当前地块 CSV</button></section>
+    <section class="welcome"><div><span class="banner-label">AGRICULTURE × OPEN SOURCE</span><h2>让田间数据，有迹可循。</h2><p>连接设备 · 观察趋势 · 解释每一条提示<br>纯浏览器演示；真实设备接入需本地运行。</p><span class="banner-chip">浏览器模拟演示</span><span class="banner-chip">刷新后重置</span></div><svg viewBox="0 0 500 250" role="img" aria-label="连接传感器的田地示意图"><defs><pattern id="field" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)"><path d="M0 0V28" stroke="#8cbaa2" stroke-width="10"/></pattern></defs><circle cx="330" cy="100" r="85" fill="#dae6d6"/><path d="M40 210L175 105L455 156L320 245Z" fill="url(#field)"/><path d="M40 210L175 105L455 156L320 245Z" fill="none" stroke="#68977e"/><path d="M175 105V81M320 180V137M398 151V105" stroke="#2d7151" stroke-width="2"/><g fill="#214c38" stroke="#eaf1e6" stroke-width="5"><circle cx="175" cy="78" r="9"/><circle cx="320" cy="132" r="9"/><circle cx="398" cy="101" r="9"/></g><path d="M175 78L320 132L398 101" stroke="#2d7151" stroke-dasharray="5 5" fill="none"/><path d="M70 89Q88 40 122 50Q115 80 70 89Z" fill="#9cbd8e"/><path d="M71 88L101 65" stroke="#426b41"/><text x="182" y="49" fill="#426b41" font-size="11" letter-spacing="3">CONNECTED FIELDS</text></svg></section>
+    <div class="toolbar"><div class="source-control" role="group" aria-label="数据来源"><button data-source="simulator" class="selected" aria-pressed="true">模拟演示</button><button disabled title="真实设备接入需要本地 Python 服务" data-source="device" aria-pressed="false">真实设备</button></div><div class="refresh-control"><span id="updated">等待首批数据</span><button id="pause" class="text-button">暂停刷新</button></div></div>
+    <div id="notice" class="notice" role="status">演示模式：数据来自模拟器，阈值仅用于软件演示，不代表实际作物需水量。</div>
+    <div id="error" class="error" role="alert" hidden></div>
+    <section class="stats" aria-label="监测指标"><article><div class="stat-top">平均气温 <span>℃</span></div><div class="stat-value" id="temperature">—</div><div class="stat-foot">当前在线设备平均值</div></article><article><div class="stat-top">平均空气湿度 <span>%</span></div><div class="stat-value" id="humidity">—</div><div class="stat-foot">观察环境中的水分变化</div></article><article><div class="stat-top">平均土壤读数 <span>%</span></div><div class="stat-value" id="moisture">—</div><div class="stat-foot">需结合传感器实际标定</div></article><article><div class="stat-top">在线设备 <span>●</span></div><div class="stat-value" id="online">—</div><div class="stat-foot" id="online-foot">60 秒内有上报即为在线</div></article></section>
+    <section class="content-grid"><article class="panel trend-panel" id="trends"><div class="panel-heading"><div><h2>土壤水分趋势</h2><p>最近 120 条数据 · 按设备分别绘制</p></div><select id="zone" aria-label="选择地块"><option value="greenhouse-a">温室 A · 番茄</option><option value="greenhouse-b">温室 B · 叶菜</option><option value="field-c">露天 C · 玉米</option></select></div><div class="chart-legend"><span><i class="legend-line"></i>土壤读数</span><span><i class="legend-dash"></i>设定阈值 <b id="threshold-label">35%</b></span></div><div id="chart" class="chart" aria-live="polite"></div></article><article class="panel advice-panel" id="rules"><div class="panel-heading"><div><h2>灌溉提示</h2><p>简单规则，每条都能解释</p></div><span class="rule-icon">↗</span></div><div id="advice-list"></div><form id="threshold-form"><label for="threshold">当前地块提示阈值 <span>5–90%</span></label><div class="threshold-input"><input id="threshold" type="number" min="5" max="90" step="0.1" value="35" required><button class="button primary" type="submit">保存阈值</button></div><p>阈值只保存在当前页面内存中，刷新后重置。演示不会连接设备、保存数据库或控制水泵。</p></form></article></section>
+    <section class="panel devices-panel" id="devices"><div class="panel-heading"><div><h2>设备与地块 <span id="device-count" class="count">0</span></h2><p>关注每一颗传感器的状态</p></div><span class="subtle">自动刷新 / 5 秒</span></div><div class="table-scroll"><table><thead><tr><th>设备 / 地块</th><th>连接状态</th><th>气温</th><th>空气湿度</th><th>土壤读数</th><th>光照</th><th>电量</th></tr></thead><tbody id="device-rows"></tbody></table></div><div id="empty" class="empty" hidden>尚无真实设备数据。按 README 的 HTTP 示例上报后，设备会出现在这里。</div></section>
+    <footer><span><span class="tiny-dot"></span> 开源，让农业创新触手可及。</span><span>AgriPulse · Built for curious growers</span></footer>
+  </div>
+</main>
+<dialog id="key-dialog"><form id="key-form"><h2>连接设置</h2><p>仅当服务端设置了 AGRIPULSE_API_KEY 时需要。密钥只保留在当前页面内存中，刷新后需重新输入。</p><label for="api-key">API key</label><input id="api-key" type="password" autocomplete="off"><div class="dialog-actions"><button id="cancel-key" type="button" class="button secondary">取消</button><button type="submit" class="button primary">连接</button></div></form></dialog>
+</body></html>

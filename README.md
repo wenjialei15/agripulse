@@ -17,6 +17,12 @@ AgriPulse is a hardware-optional agriculture IoT starter: a live dashboard, vali
 - **支持真实设备接入**：提供带有数据校验的 JSON HTTP 上报接口和 Python 上报示例，ESP32 等设备可按相同协议对接。
 - **中文响应式看板**：气温、空气湿度、土壤读数、光照、电量、在线状态与历史趋势。
 
+## 在线演示
+
+**[打开 GitHub Pages 农业看板](https://wenjialei15.github.io/agripulse/)**，电脑和手机均可访问。线上为纯浏览器模拟演示，支持地块切换、临时阈值和模拟 CSV 导出；刷新后重置。真实设备接入、鉴权和 SQLite 存储需要按下文在本地运行 Python 服务。
+
+维护者可运行 `python scripts/build_pages.py` 重新生成 `docs/` 中的静态演示文件，再提交到 `main`；Pages 从该目录发布，不会读取本地数据库。
+
 ## 30 秒启动
 
 需要 Python **3.9+**。建议使用仍受支持的 Python 版本，同时兼容使用 Python 3.9 的现有环境。运行核心功能无需安装第三方依赖。
