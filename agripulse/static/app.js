@@ -7,12 +7,32 @@ let loading = false;
 let generation = 0;
 let summary = null;
 let savedNotice = '';
+let thresholdContext = '';
+let settingsReady = false;
+let savingThreshold = false;
 const ns = 'http://www.w3.org/2000/svg';
+
+function setThresholdReady(ready) {
+  settingsReady = ready;
+  $('threshold').disabled = !ready || savingThreshold;
+  $('save-threshold').disabled = !ready || savingThreshold;
+}
 
 async function request(path, options = {}) {
   const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  const response = await fetch(path, { ...options, headers });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  let response;
+  try {
+    response = await fetch(path, { ...options, headers, signal: controller.signal });
+    // Read the body within the timeout too, so a stalled response cannot block refresh forever.
+    const body = await response.blob();
+    response = new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('请求超时，请检查服务连接');
+    throw error;
+  } finally { clearTimeout(timer); }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     if (response.status === 401 && !$('key-dialog').open) $('key-dialog').showModal();
@@ -51,7 +71,11 @@ function renderSummary(data) {
     : '真实设备模式：读数来自 HTTP 上报。土壤百分比需自行标定，灌溉提示须由人工结合现场情况判断。';
   const zoneNames = Object.fromEntries(data.zones.map((z) => [z.id, z.name]));
   const zone = data.zones.find((z) => z.id === $('zone').value);
-  if (document.activeElement !== $('threshold') && !savedNotice) $('threshold').value = zone.moisture_min;
+  const context = `${source}:${zone.id}`;
+  if (context !== thresholdContext || (document.activeElement !== $('threshold') && !savedNotice)) $('threshold').value = zone.moisture_min;
+  thresholdContext = context;
+  setThresholdReady(true);
+  $('threshold-scope').textContent = source === 'simulator' ? '仅修改模拟演示阈值，不影响真实设备。' : '仅修改真实设备阈值，不影响模拟演示。';
   $('threshold-label').textContent = `${zone.moisture_min}%`;
   $('device-rows').replaceChildren();
   for (const d of data.devices) {
@@ -60,7 +84,9 @@ function renderSummary(data) {
     identity.append(el('span', 'device-id', d.device_id), el('span', 'device-zone', zoneNames[d.zone_id]));
     const state = el('td');
     state.append(el('span', d.online ? 'status' : 'status offline', d.online ? '● 在线' : '○ 离线'));
-    row.append(identity, state, el('td', '', `${d.temperature.toFixed(1)} ℃`), el('td', '', `${d.humidity.toFixed(1)}%`), el('td', d.advice.level === 'warning' ? 'low' : '', `${d.soil_moisture.toFixed(1)}%`), el('td', '', `${Math.round(d.light).toLocaleString()} lx`), el('td', '', `${d.battery.toFixed(0)}%`));
+    if (!d.has_reading) state.append(el('span', 'device-zone', '历史读数已清理'));
+    const measurement = (value, unit, digits = 1) => value === null ? '—' : `${value.toFixed(digits)}${unit}`;
+    row.append(identity, state, el('td', '', measurement(d.temperature, ' ℃')), el('td', '', measurement(d.humidity, '%')), el('td', d.advice.level === 'warning' ? 'low' : '', measurement(d.soil_moisture, '%')), el('td', '', d.light === null ? '—' : `${Math.round(d.light).toLocaleString()} lx`), el('td', '', measurement(d.battery, '%', 0)));
     $('device-rows').append(row);
   }
   $('empty').hidden = data.devices.length > 0;
@@ -82,8 +108,9 @@ function renderChart(readings, threshold) {
     container.append(el('div', 'chart-empty', '暂无历史数据，等待设备上报。'));
     return;
   }
-  const svg = svgEl('svg', { viewBox: '0 0 640 230', role: 'img', 'aria-label': `土壤水分趋势图，阈值 ${threshold}%，${readings.length} 条数据` });
-  const left = 40, right = 622, top = 14, bottom = 188;
+  const width = Math.max(300, Math.min(640, container.clientWidth - 32));
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} 230`, role: 'img', 'aria-label': `土壤水分趋势图，阈值 ${threshold}%，${readings.length} 条数据` });
+  const left = 40, right = width - 18, top = 14, bottom = 188;
   const times = readings.map((r) => new Date(r.recorded_at).getTime());
   const first = Math.min(...times), last = Math.max(...times);
   const x = (time) => first === last ? (left + right) / 2 : left + (time - first) / (last - first) * (right - left);
@@ -138,6 +165,7 @@ async function refresh(force = false) {
     $('connection').textContent = '○ 连接中断';
     $('error').textContent = `${error.message}。页面保留最后一次成功读取的数据，请检查服务连接。`;
     $('error').hidden = false;
+    setThresholdReady(false);
   } finally {
     loading = false;
     if (currentGeneration !== generation) refresh(true);
@@ -150,6 +178,10 @@ document.querySelectorAll('[data-source]').forEach((button) => {
     source = button.dataset.source;
     generation++;
     summary = null;
+    savedNotice = '';
+    setThresholdReady(false);
+    $('threshold-label').textContent = '—';
+    $('threshold-scope').textContent = '正在加载当前模式的阈值…';
     // Clear old-source readings immediately, even if the next fetch fails.
     for (const id of ['temperature', 'humidity', 'moisture', 'online']) $(id).textContent = '—';
     $('device-rows').replaceChildren();
@@ -165,7 +197,15 @@ document.querySelectorAll('[data-source]').forEach((button) => {
     refresh(true);
   });
 });
-$('zone').addEventListener('change', () => { generation++; savedNotice = ''; refresh(true); });
+$('zone').addEventListener('change', () => {
+  generation++;
+  savedNotice = '';
+  setThresholdReady(false);
+  $('threshold-label').textContent = '—';
+  $('chart').replaceChildren(el('div', 'chart-empty', '正在加载所选地块…'));
+  $('advice-list').replaceChildren();
+  refresh(true);
+});
 $('pause').addEventListener('click', () => {
   paused = !paused;
   $('pause').textContent = paused ? '继续刷新' : '暂停刷新';
@@ -174,21 +214,28 @@ $('pause').addEventListener('click', () => {
 });
 $('threshold-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const button = event.submitter;
+  if (!settingsReady || savingThreshold) return;
+  const button = $('save-threshold');
+  const saveSource = source;
+  const saveZone = $('zone').value;
   const value = Number($('threshold').value);
   if (!Number.isFinite(value) || value < 5 || value > 90) return;
-  button.disabled = true;
+  savingThreshold = true;
+  setThresholdReady(settingsReady);
   try {
-    await request('/api/threshold', { method: 'POST', body: JSON.stringify({ zone_id: $('zone').value, moisture_min: value }) });
-    savedNotice = 'saved';
-    button.textContent = '已保存';
+    await request('/api/threshold', { method: 'POST', body: JSON.stringify({ zone_id: saveZone, moisture_min: value, source: saveSource }) });
+    if (saveSource === source && saveZone === $('zone').value) {
+      savedNotice = 'saved';
+      button.textContent = '已保存';
+    }
     generation++;
     await refresh(true);
   } catch (error) {
     $('error').textContent = error.message;
     $('error').hidden = false;
   } finally {
-    button.disabled = false;
+    savingThreshold = false;
+    setThresholdReady(settingsReady && thresholdContext === `${source}:${$('zone').value}`);
     setTimeout(() => { savedNotice = ''; button.textContent = '保存阈值'; }, 1800);
   }
 });
