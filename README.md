@@ -1,6 +1,6 @@
 # AgriPulse 🌱
 
-**让田间数据，有迹可循。** 一个无需硬件也能运行的农业物联网开源项目。
+**让田间数据，有迹可循。** 一个支持模拟演示与真实设备接入的农业物联网开源项目。
 
 AgriPulse is a hardware-optional agriculture IoT starter: a live dashboard, validated HTTP telemetry ingestion, SQLite history and explainable soil-moisture hints. Built with Python's standard library and vanilla JavaScript. No cloud account, frontend build or third-party runtime dependency required.
 
@@ -12,12 +12,12 @@ AgriPulse is a hardware-optional agriculture IoT starter: a live dashboard, vali
 
 农业物联网入门常常卡在硬件、云平台配置或复杂部署上。AgriPulse 从可运行的最小链路出发：**采集 → 存储 → 可视化 → 可解释提示**。先用模拟器理解流程，再把模拟器换成自己的设备。
 
-- **无硬件即可体验**：3 个模拟地块，首次启动生成约 1 小时历史，之后每 5 秒刷新。
+- **无需连接传感器，即可体验**：内置 3 个模拟地块，首次启动时生成约 1 小时的模拟历史数据，之后每 5 秒更新一次。
 - **演示与现场明确分开**：切换“模拟演示 / 真实设备”，两种来源分别查询、导出和设置阈值，演示修改不会影响真实设备。
 - **数据留在本机**：SQLite 持久化，启动时及每小时清理超过 30 天的读数，关闭模拟器后仍执行；可导出当前地块、当前来源最近 10000 条 CSV 数据。
 - **设备身份独立保存**：历史读数过期后，设备仍显示为离线，地块与来源绑定继续保留，恢复上报后自动更新。
-- **建议可以解释**：每块地可单独设置水分阈值，页面展示触发原因；离线设备不生成灌溉提示。
-- **真实接入路径**：校验过的 JSON HTTP 上报接口，提供 Python 设备示例，ESP32 等设备可按相同协议对接。
+- **提示依据清晰**：每块地可单独设置水分阈值，页面展示触发原因；离线设备不生成灌溉提示。
+- **支持真实设备接入**：提供带有数据校验的 JSON HTTP 上报接口和 Python 上报示例，ESP32 等设备可按相同协议对接。
 - **中文响应式看板**：气温、空气湿度、土壤读数、光照、电量、在线状态与历史趋势。
 
 ## 30 秒启动
@@ -33,7 +33,7 @@ AgriPulse is a hardware-optional agriculture IoT starter: a live dashboard, vali
 
 </details>
 
-需要 Python **3.9+**。建议使用仍受支持的 Python 版本；3.9 兼容用于已有环境。核心运行不需要 `pip install`。
+需要 Python **3.9+**。建议使用仍受支持的 Python 版本，同时兼容使用 Python 3.9 的现有环境。运行核心功能无需安装第三方依赖。
 
 ```bash
 git clone https://github.com/wenjialei15/agripulse.git
