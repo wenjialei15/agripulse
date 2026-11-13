@@ -57,8 +57,9 @@ class HttpTests(unittest.TestCase):
         status, body, headers = self.call("/api/export.csv?zone=field-c&source=device")
         self.assertIn("text/csv", headers["Content-Type"])
         self.assertEqual(list(csv.DictReader(io.StringIO(body.decode("utf-8-sig"))))[0]["device_id"], "esp32-01")
-        self.assertEqual(self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": 25})[0], 200)
-        self.assertEqual(self.store.thresholds()["field-c"], 25)
+        self.assertEqual(self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": 25, "source": "device"})[0], 200)
+        self.assertEqual(self.store.thresholds("device")["field-c"], 25)
+        self.assertEqual(self.store.thresholds("simulator")["field-c"], 35)
 
     def test_cross_origin_write_is_rejected(self):
         status, _, _ = self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": 25}, extra={"Origin": "https://other.example"})
@@ -77,6 +78,28 @@ class HttpTests(unittest.TestCase):
             self.assertTrue(body)
             self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertEqual(self.call("/../core.py")[0], 404)
+
+    def test_extreme_numbers_return_json_400_and_server_remains_available(self):
+        row = {**simulated_reading("field-c", 2, 1), "device_id": "esp32-02"}
+        for payload in ({**row, "temperature": 10 ** 400}, {**row, "zone_id": []}):
+            status, body, headers = self.call("/api/telemetry", payload)
+            self.assertEqual(status, 400)
+            self.assertIn("error", json.loads(body))
+            self.assertIn("application/json", headers["Content-Type"])
+        status, body, _ = self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": 10 ** 400, "source": "device"})
+        self.assertEqual(status, 400)
+        self.assertIn("error", json.loads(body))
+        self.assertEqual(self.call("/api/telemetry", row)[0], 201)
+
+    def test_threshold_writes_require_explicit_source(self):
+        for source in (None, "unknown", [], {}):
+            self.assertEqual(self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": 20, "source": source})[0], 400)
+        self.assertEqual(self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": 20})[0], 400)
+        for source, value in (("device", 45), ("simulator", 25)):
+            self.assertEqual(self.call("/api/threshold", {"zone_id": "field-c", "moisture_min": value, "source": source})[0], 200)
+            status, body, _ = self.call("/api/summary?source=" + source)
+            zone = next(z for z in json.loads(body)["zones"] if z["id"] == "field-c")
+            self.assertEqual(zone["moisture_min"], value)
 
 
 if __name__ == "__main__":

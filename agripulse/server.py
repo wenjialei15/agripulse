@@ -4,21 +4,51 @@ import csv
 import hmac
 import io
 import json
+import logging
 import os
+import sqlite3
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from . import __version__
 from .core import Store, ZONES
 
 STATIC = Path(__file__).parent / "static"
 MAX_BODY = 16384
 
 
+def start_background_tasks(store, stop, simulator_enabled=True, retention_interval=3600):
+    """Retention runs in both modes; Event.wait makes shutdown interruptible."""
+    def maintain():
+        while not stop.wait(retention_interval):
+            try:
+                store.prune()
+            except sqlite3.Error:
+                logging.exception("历史数据清理失败，将在下个周期重试")
+
+    def simulate():
+        step = 60
+        while not stop.is_set():
+            try:
+                store.simulate(step)
+            except sqlite3.Error:
+                logging.exception("模拟数据写入失败，将在下个周期重试")
+            step += 1
+            stop.wait(5)
+
+    threads = [threading.Thread(target=maintain, name="agripulse-retention", daemon=True)]
+    if simulator_enabled:
+        threads.append(threading.Thread(target=simulate, name="agripulse-simulator", daemon=True))
+    for thread in threads:
+        thread.start()
+    return threads
+
+
 def make_handler(store, api_key="", simulator_enabled=True):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "AgriPulse/0.1"
+        server_version = "AgriPulse/" + __version__
 
         def reply(self, status, body, content_type="application/json; charset=utf-8"):
             if not isinstance(body, bytes):
@@ -43,7 +73,7 @@ def make_handler(store, api_key="", simulator_enabled=True):
         def do_GET(self):
             route = urlsplit(self.path)
             if route.path == "/api/health":
-                return self.reply(200, {"status": "ok", "version": "0.1.0", "simulator_enabled": simulator_enabled})
+                return self.reply(200, {"status": "ok", "version": __version__, "simulator_enabled": simulator_enabled})
             if route.path.startswith("/api/"):
                 if not self.authorized():
                     return
@@ -96,7 +126,7 @@ def make_handler(store, api_key="", simulator_enabled=True):
                     raise ValueError("请求体必须为 JSON 对象")
                 if path == "/api/telemetry":
                     return self.reply(201, {"id": store.ingest(payload), "source": "device"})
-                store.set_threshold(payload.get("zone_id"), payload.get("moisture_min"))
+                store.set_threshold(payload.get("zone_id"), payload.get("moisture_min"), payload.get("source"))
                 return self.reply(200, {"ok": True})
             except (ValueError, UnicodeError, TypeError) as exc:
                 self.reply(400, {"error": str(exc)})
@@ -119,19 +149,9 @@ def main():
     stop = threading.Event()
     if not args.no_simulator:
         store.seed_demo()
-
-        def simulate():
-            step = 60
-            while not stop.is_set():
-                store.simulate(step)
-                if step % 720 == 0:
-                    store.prune()
-                step += 1
-                stop.wait(5)
-
-        threading.Thread(target=simulate, daemon=True).start()
     server = ThreadingHTTPServer((args.host, args.port), make_handler(store, key, not args.no_simulator))
     server.daemon_threads = True
+    workers = start_background_tasks(store, stop, not args.no_simulator)
     print(f"AgriPulse: http://{args.host}:{args.port}  (Ctrl+C 停止)", flush=True)
     try:
         server.serve_forever()
@@ -140,6 +160,8 @@ def main():
     finally:
         stop.set()
         server.server_close()
+        for worker in workers:
+            worker.join(timeout=12)
 
 
 if __name__ == "__main__":

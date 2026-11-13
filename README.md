@@ -4,20 +4,34 @@
 
 AgriPulse is a hardware-optional agriculture IoT starter: a live dashboard, validated HTTP telemetry ingestion, SQLite history and explainable soil-moisture hints. Built with Python's standard library and vanilla JavaScript. No cloud account, frontend build or third-party runtime dependency required.
 
-**状态：v0.1.0 / 可运行 MVP** · **维护者：[wenjialei15](https://github.com/wenjialei15)** · **协议：[MIT](LICENSE)**
+**状态：v0.1.1 / 可运行 MVP** · **维护者：[wenjialei15](https://github.com/wenjialei15)** · **协议：[MIT](LICENSE)**
+
+[![Tests](https://github.com/wenjialei15/agripulse/actions/workflows/ci.yml/badge.svg)](https://github.com/wenjialei15/agripulse/actions/workflows/ci.yml)
 
 ## 为什么做这个项目
 
 农业物联网入门常常卡在硬件、云平台配置或复杂部署上。AgriPulse 从可运行的最小链路出发：**采集 → 存储 → 可视化 → 可解释提示**。先用模拟器理解流程，再把模拟器换成自己的设备。
 
 - **无硬件即可体验**：3 个模拟地块，首次启动生成约 1 小时历史，之后每 5 秒刷新。
-- **演示与现场明确分开**：切换“模拟演示 / 真实设备”，两种来源分别查询和导出。
-- **数据留在本机**：SQLite 持久化，默认保留最近 30 天；可导出当前地块、当前来源最近 10000 条 CSV 数据。
+- **演示与现场明确分开**：切换“模拟演示 / 真实设备”，两种来源分别查询、导出和设置阈值，演示修改不会影响真实设备。
+- **数据留在本机**：SQLite 持久化，启动时及每小时清理超过 30 天的读数，关闭模拟器后仍执行；可导出当前地块、当前来源最近 10000 条 CSV 数据。
+- **设备身份独立保存**：历史读数过期后，设备仍显示为离线，地块与来源绑定继续保留，恢复上报后自动更新。
 - **建议可以解释**：每块地可单独设置水分阈值，页面展示触发原因；离线设备不生成灌溉提示。
 - **真实接入路径**：校验过的 JSON HTTP 上报接口，提供 Python 设备示例，ESP32 等设备可按相同协议对接。
 - **中文响应式看板**：气温、空气湿度、土壤读数、光照、电量、在线状态与历史趋势。
 
 ## 30 秒启动
+
+桌面看板（模拟数据）：
+
+![AgriPulse 桌面看板](docs/images/dashboard-desktop.png)
+
+<details>
+<summary>查看手机看板</summary>
+
+<img src="docs/images/dashboard-mobile.png" alt="AgriPulse 手机看板" width="390">
+
+</details>
 
 需要 Python **3.9+**。建议使用仍受支持的 Python 版本；3.9 兼容用于已有环境。核心运行不需要 `pip install`。
 
@@ -84,9 +98,11 @@ JSON 协议示例：
 | GET | `/api/history?zone=greenhouse-a&source=device` | 当前地块最近 120 条记录，按入库顺序返回 |
 | GET | `/api/export.csv?zone=greenhouse-a&source=device` | 当前地块最近 10000 条记录，UTF-8 CSV |
 | POST | `/api/telemetry` | 上报上述 JSON；成功返回 201 与记录 ID |
-| POST | `/api/threshold` | `{"zone_id":"greenhouse-a","moisture_min":35}`；范围 5–90 |
+| POST | `/api/threshold` | `{"zone_id":"greenhouse-a","moisture_min":35,"source":"device"}`；范围 5–90，`source` 必填 |
 
-`source` 可用 `simulator` 或 `device`，默认 `simulator`。写入时设置 `Content-Type: application/json`。API 错误返回 `{"error":"..."}` 和对应 HTTP 状态码。
+查询参数 `source` 可用 `simulator` 或 `device`，默认 `simulator`。修改阈值必须在 JSON 中明确指定 `source`，缺少或无效时返回 400；遥测上报始终归入 `device`。写入时设置 `Content-Type: application/json`。API 错误返回 `{"error":"..."}` 和对应 HTTP 状态码。
+
+汇总中的设备包含 `first_seen`、`last_seen` 和 `has_reading`。历史读数全部过期后，设备仍返回，`has_reading=false`、`online=false`，测量字段和 `recorded_at` 为 `null`，页面显示 `—`。`last_seen` 保留最后接收时间。
 
 ## 连接局域网设备
 
@@ -115,13 +131,17 @@ python -m agripulse --host 0.0.0.0 --no-simulator
 | 路径 | 职责 |
 | --- | --- |
 | `agripulse/core.py` | 数据校验、SQLite 存储、模拟器、阈值规则 |
-| `agripulse/server.py` | HTTP API、鉴权、静态文件、后台模拟任务 |
+| `agripulse/server.py` | HTTP API、鉴权、静态文件、独立历史清理与后台模拟任务 |
 | `agripulse/static/` | 中文监测看板，原生 HTML / CSS / JavaScript |
 | `examples/send_reading.py` | 可运行的 HTTP 设备上报示例 |
 | `tests/` | 存储、规则与 HTTP 集成测试 |
 | `docs/` | 路线图、API 使用补充与贡献方向 |
 
 设备或模拟器写入同一存储层，以来源字段隔离；浏览器每 5 秒读取汇总和历史接口。各设备的趋势分别绘制，避免把不同设备的点拼成一条曲线。超过 60 秒未收到新数据即视为离线，离线读数不计入平均值。
+
+## 从 v0.1.0 升级
+
+先停止服务并备份数据库，再使用新代码启动。首次打开旧数据库时自动迁移：保留读数、从现有读数注册设备，并把原有地块阈值复制到两个模式；之后分别修改。已经被旧版删除的读数和设备信息无法恢复。迁移后的数据库不能直接交给旧版本使用。详细操作见 [升级说明](docs/UPGRADING.md)，变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 验证
 
@@ -135,6 +155,8 @@ python -m unittest discover -s tests -v
 node --check agripulse/static/app.js
 ```
 
+可选浏览器回归测试：`npm ci`、`npx playwright install chromium`、`npm test`。它们仅为开发依赖；详见 [贡献指南](CONTRIBUTING.md#浏览器测试与截图)。
+
 ## 当前边界
 
 - 阈值提示是软件规则演示，不是经农艺验证的灌溉模型，也不会操作水泵。
@@ -142,7 +164,8 @@ node --check agripulse/static/app.js
 - 地块当前在 `core.py` 的 `ZONES` 中定义，不支持页面增删地块。
 - 告警为当前状态提示，未实现独立告警事件历史、短信或邮件通知。
 - 当前支持 HTTP 接入；MQTT、LoRaWAN、MCP 和 AI 功能属于后续计划，尚未实现。
-- 数据库备份应在停止服务后进行；本版本没有自动备份及数据库升级迁移系统。
+- 数据库备份应在停止服务后进行；支持 v0.1.0 数据库自动迁移，但没有自动备份或降级迁移。
+- 设备身份会持续保留，尚无删除设备或调整地块绑定的管理界面。
 
 ## 一起完善它
 

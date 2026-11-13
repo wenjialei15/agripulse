@@ -1,0 +1,11 @@
+{
+  "name": "agripulse",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "check": "node --check agripulse/static/app.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0"
+  }
+}
